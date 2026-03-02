@@ -1,0 +1,20 @@
+{
+  "name": "offline_file_server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.2.1",
+    "multer": "^2.1.0",
+    "node-file-dialog": "^1.0.3",
+    "open": "^11.0.0"
+  }
+}
