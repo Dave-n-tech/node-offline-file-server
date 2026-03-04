@@ -1,70 +1,117 @@
+const dotenv = require("dotenv");
+dotenv.config();
 const express = require("express");
-const multer = require("multer");
-const os = require("os");
+const os = require("os")
 const open = require("open").default;
+const bonjour = require("bonjour")();
+const fs = require("fs-extra");
+const path = require("path");
 
 const app = express();
-const PORT = 8000;
+const PORT = 8080;
+let server;
 
-// Store file in memory (no disk saving)
-const upload = multer({ storage: multer.memoryStorage() });
+app.set('view engine', 'ejs');
+app.use(express.static(path.join(__dirname, 'public')));
 
-let uploadedFile = null;
+const connectRoute = require('./routes/connect');
+const uploadRoute = require('./routes/upload');
+const filesRoute = require('./routes/files');
 
-app.get("/", (req, res) => {
-  if (!uploadedFile) {
-    return res.send("<h2>No file uploaded yet.</h2>");
+app.use(connectRoute);
+app.use(uploadRoute);
+app.use(filesRoute);
+
+
+// try {
+//   bonjour.publish({ name: 'FileShare', type: 'http', port: PORT });
+// } catch (err) {
+//   console.warn('Could not publish mDNS service:', err.message);
+// }
+
+
+function cleanupSync() {
+  try {
+    console.log('\nCleaning up uploads folder...');
+    const uploadsDir = path.join(__dirname, 'uploads');
+    
+    // Delete the entire uploads folder
+    if (require('fs').existsSync(uploadsDir)) {
+      require('fs').rmSync(uploadsDir, { recursive: true, force: true });
+      console.log('Uploads folder deleted');
+    }
+    console.log('Cleanup complete');
+  } catch (err) {
+    console.error('Cleanup error:', err.message);
   }
+}
 
-  res.send(`
-    <h1>Download Class Material</h1>
-    <p>${uploadedFile.originalname}</p>
-    <a href="/download">Click here to download</a>
-  `);
+let isShuttingDown = false;
+
+process.on('SIGINT', () => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  
+  console.log('\nShutting down server...');
+  cleanupSync();
+  if (server) server.close();
+  setTimeout(() => process.exit(0), 100);
 });
 
-app.get("/admin", (req, res) => {
-  res.send(`
-    <h1>Upload Class File</h1>
-    <form action="/upload" method="post" enctype="multipart/form-data">
-      <input type="file" name="file" required />
-      <button type="submit">Upload</button>
-    </form>
-  `);
+process.on('SIGTERM', () => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  
+  console.log('\nShutting down server (SIGTERM)...');
+  cleanupSync();
+  if (server) server.close();
+  setTimeout(() => process.exit(0), 100);
 });
 
-// Handle upload
-app.post("/upload", upload.single("file"), (req, res) => {
-  uploadedFile = req.file;
-
-  if (!uploadedFile) {
-    return res.send("No file uploaded.");
+// Fallback cleanup handlers
+process.on('beforeExit', (code) => {
+  if (!isShuttingDown) {
+    console.log('\nProcess beforeExit, cleaning up...');
+    cleanupSync();
   }
-
-  res.send(`
-    <h1>File Ready</h1>
-    <p>${uploadedFile.originalname}</p>
-    <p>Students can download at:</p>
-    <a href="/download">Download Link</a>
-  `);
 });
 
-// Download route
-app.get("/download", (req, res) => {
-  if (!uploadedFile) {
-    return res.send("No file available.");
+process.on('exit', (code) => {
+  if (!isShuttingDown) {
+    // Synchronous cleanup only
+    const uploadsDir = path.join(__dirname, 'uploads');
+    if (require('fs').existsSync(uploadsDir)) {
+      try {
+        require('fs').rmSync(uploadsDir, { recursive: true, force: true });
+        console.log('Exit cleanup: uploads folder deleted');
+      } catch (err) {
+        console.error('Exit cleanup error:', err.message);
+      }
+    }
   }
-
-  res.setHeader(
-    "Content-Disposition",
-    `attachment; filename="${uploadedFile.originalname}"`
-  );
-  res.send(uploadedFile.buffer);
 });
 
-// Start server
-app.listen(PORT, "0.0.0.0", async () => {
-  console.log(`Server running on port ${PORT}`);
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+  cleanupSync();
+  process.exit(1);
+});
+
+// Handle unhandled rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled rejection at:', promise, 'reason:', reason);
+  cleanupSync();
+  process.exit(1);
+});
+
+server = app.listen(PORT, "0.0.0.0", async () => {
+  // Ensure uploads folder exists
+  const uploadsDir = path.join(__dirname, 'uploads');
+  await fs.ensureDir(uploadsDir);
+  console.log('Uploads folder ready');
+
+  console.log(`Server running at http://localhost:${PORT}`);
 
   const interfaces = os.networkInterfaces();
   for (let name of Object.keys(interfaces)) {
@@ -74,7 +121,7 @@ app.listen(PORT, "0.0.0.0", async () => {
       }
     }
   }
+  console.log(`Upload files at: http://localhost:${PORT}/upload`);
 
-  // Open browser automatically
-  await open(`http://localhost:${PORT}`);
+  await open(`http://localhost:${PORT}/connect`);
 });

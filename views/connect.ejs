@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FileShare</title>
+  <link rel="stylesheet" href="/css/tailwind.css">
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+  <h1 class="text-3xl font-bold mb-4">Connect to FileShare</h1>
+  <div class="mb-4">
+    <img src="<%= qrDataURL %>" alt="Scan QR to connect" class="border p-2 bg-white">
+  </div>
+  <!-- <p class="mb-2">Laptop/Desktop: <strong><%= mdnsName %>:8080</strong></p> -->
+  <p>Fallback IP: <strong>http://<%= LAN_IP %>:8080</strong></p>
+</body>
+</html>

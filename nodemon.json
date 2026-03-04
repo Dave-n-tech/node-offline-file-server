@@ -1,0 +1,11 @@
+{
+  "watch": ["*.js", "routes/", "views/"],
+  "ext": "js,ejs",
+  "ignore": ["test-cleanup.js", "scripts/"],
+  "events": {
+    "exit": "node scripts/cleanup.js",
+    "quit": "node scripts/cleanup.js"
+  },
+  "signal": "SIGTERM",
+  "delay": 500
+}
