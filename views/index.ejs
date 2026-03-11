@@ -24,7 +24,7 @@
 
     <ul class="space-y-3">
       <% if (files.length === 0) { %>
-        <li class="bg-white p-8 rounded-lg shadow text-gray-500 text-center">
+        <li id="no-files-msg" class="bg-white p-8 rounded-lg shadow text-gray-500 text-center">
           No files available yet.
         </li>
       <% } else { %>
@@ -91,6 +91,39 @@
           isDownloading = false;
         }, 800);
       }, 1500);
+    }
+
+    // Server-Sent Events: listen for new uploads
+    const evtSource = new EventSource('/events');
+    evtSource.onmessage = function(e) {
+      const file = JSON.parse(e.data);
+      addFileToList(file);
+    };
+
+    function addFileToList(file) {
+      const ul = document.querySelector('ul');
+
+      // Remove the "no files" placeholder if present
+      const noFilesMsg = document.getElementById('no-files-msg');
+      if (noFilesMsg) noFilesMsg.remove();
+
+      const li = document.createElement('li');
+      li.className = 'bg-white p-8 rounded-lg shadow hover:shadow-lg transition-shadow flex justify-between items-center';
+
+      const span = document.createElement('span');
+      span.className = 'text-gray-700 font-medium truncate mr-4';
+      span.textContent = file.originalName;
+
+      const btn = document.createElement('button');
+      btn.className = 'bg-blue-500 text-white text-xl px-6 py-8 rounded-lg hover:bg-blue-600 active:bg-blue-700 transition-colors font-medium shadow-sm hover:shadow-md';
+      btn.textContent = 'Download';
+      btn.addEventListener('click', function() {
+        downloadFile('/download/' + file.storedName, file.originalName);
+      });
+
+      li.appendChild(span);
+      li.appendChild(btn);
+      ul.appendChild(li);
     }
   </script>
 </body>

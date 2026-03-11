@@ -2,14 +2,31 @@ const express = require('express');
 const router = express.Router();
 const fs = require('fs-extra');
 const path = require('path');
+const fileEvents = require('../utils/eventEmitter');
 
 const METADATA_FILE = path.join(__dirname, '../uploads/.metadata.json');
+
+// SSE clients
+const clients = new Set();
+
+fileEvents.on('new-file', (fileData) => {
+  const payload = `data: ${JSON.stringify(fileData)}\n\n`;
+  for (const client of clients) {
+    client.write(payload);
+  }
+});
 
 // File listing
 router.get('/', async (req, res) => {
   const uploadDir = path.join(__dirname, '../uploads');
-  let files = await fs.readdir(uploadDir);
-  
+  let files = [];
+  try {
+    if (await fs.pathExists(uploadDir)) {
+      files = await fs.readdir(uploadDir);
+    }
+  } catch (err) {
+    console.warn('Could not read upload directory:', err.message);
+  }
   // Filter out metadata file
   files = files.filter(f => f !== '.metadata.json');
 
@@ -31,6 +48,20 @@ router.get('/', async (req, res) => {
   }));
 
   res.render('index', { files: fileList });
+});
+
+// SSE endpoint for real-time file updates
+router.get('/events', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  clients.add(res);
+
+  req.on('close', () => {
+    clients.delete(res);
+  });
 });
 
 // Download streaming

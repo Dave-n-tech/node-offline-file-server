@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs-extra');
+const fileEvents = require('../utils/eventEmitter');
 
 
 // Configure multer storage
@@ -44,6 +45,14 @@ router.post('/upload', upload.array('files'), async (req, res) => {
       metadata[file.filename] = file.originalname;
     }
     await fs.writeJson(METADATA_FILE, metadata);
+
+    // Notify connected clients of new files
+    for (const file of req.files) {
+      fileEvents.emit('new-file', {
+        storedName: file.filename,
+        originalName: file.originalname
+      });
+    }
   }
 
   res.render('upload-success', { 

@@ -1,4 +1,4 @@
-# FIleShare: A Simple Express Offline File Server
+# FileShare: A Simple Express Offline File Server
 
 A lightweight local file sharing server for quickly sharing files across devices on the same network.
 
